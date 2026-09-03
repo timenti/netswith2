@@ -1,0 +1,37 @@
+name: Check A.I.S.T. Film v9.1
+
+on:
+  push:
+    branches: [aist-source2-asset-build]
+    paths:
+      - '.github/workflows/check-aist-film-v91.yml'
+      - 'tools/cs2_asset_probe/check_film_v91.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare browser
+        run: |
+          npm init -y >/dev/null
+          npm install playwright-core@1.55.0 >/dev/null
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          echo "CHROME_BIN=$CHROME_BIN" >> "$GITHUB_ENV"
+          test -n "$CHROME_BIN"
+      - name: Verify pinned CDN assets on desktop and mobile
+        env:
+          PREVIEW_URL: 'https://timenti-aist-film-v91-flqi54t39-timenti.vercel.app/?_vercel_share=Jq9f11AhB7P5btSOlMWwZag9LqEBOxpN'
+        run: node tools/cs2_asset_probe/check_film_v91.mjs work/aist-film-v91
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aist-film-v91-asset-gate
+          path: work/aist-film-v91/**
+          retention-days: 7
