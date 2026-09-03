@@ -1,0 +1,72 @@
+name: Build A.I.S.T. Site CSS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [aist-source2-asset-build]
+    paths:
+      - '.github/workflows/build-aist-site-css.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: aist-source2-asset-build
+      - name: Scope film CSS
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('generated/aist-film-v8/film.css').read_text()
+          scope='.aist-film-v92'
+          def transform(text):
+              out=[]; i=0; n=len(text)
+              while i<n:
+                  while i<n and text[i].isspace(): out.append(text[i]); i+=1
+                  if i>=n: break
+                  b=text.find('{',i)
+                  if b<0: out.append(text[i:]); break
+                  head=text[i:b].strip(); depth=1; j=b+1
+                  while j<n and depth:
+                      if text[j]=='{': depth+=1
+                      elif text[j]=='}': depth-=1
+                      j+=1
+                  body=text[b+1:j-1]
+                  if head.startswith('@media') or head.startswith('@supports'):
+                      out.append(head+'{'+transform(body)+'}')
+                  elif head.startswith('@'):
+                      out.append(head+'{'+body+'}')
+                  else:
+                      sels=[]
+                      for s in head.split(','):
+                          s=s.strip()
+                          if not s: continue
+                          if s==':root': sels.append(scope)
+                          elif s=='*': sels.extend([scope,scope+' *'])
+                          elif s in ('html','body','html body'): continue
+                          elif s=='.film': sels.append(scope)
+                          elif s.startswith('.film '): sels.append(scope+s[5:])
+                          else: sels.append(scope+' '+s)
+                      if sels: out.append(','.join(sels)+'{'+body+'}')
+                  i=j
+              return ''.join(out)
+          css=transform(src)
+          css=css.replace('var(--fh)','var(--fh,100svh)')
+          Path('generated/aist-film-v92').mkdir(parents=True,exist_ok=True)
+          Path('generated/aist-film-v92/site.css').write_text(css)
+          print('site.css',len(css))
+          PY
+          grep -q '.aist-film-v92 .brand' generated/aist-film-v92/site.css
+          ! grep -q 'html,body' generated/aist-film-v92/site.css
+      - name: Commit scoped CSS
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add generated/aist-film-v92/site.css
+          git diff --cached --quiet && exit 0
+          git commit -m 'Publish scoped A.I.S.T. v9.2 site CSS [skip ci]'
+          git push origin HEAD:aist-source2-asset-build
