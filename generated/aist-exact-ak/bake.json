@@ -5,7 +5,7 @@
   "wear": 0.04228220134973526,
   "resolution": 2048,
   "mesh_group": "body_@1_#&body_legacy",
-  "normal_source": "model_mesh0_g_tNormal",
+  "normal_source": "model_mesh1_g_tNormal",
   "base_scale": 0.549,
   "pattern_xform": [
     [
