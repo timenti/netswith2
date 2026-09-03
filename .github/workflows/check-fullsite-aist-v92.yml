@@ -26,7 +26,7 @@ jobs:
           test -n "$CHROME_BIN"
       - name: Verify preload from homepage to A.I.S.T.
         env:
-          PREVIEW_URL: 'https://timenti-card-aist-v92-prewarmed-mnasfeimp-timenti.vercel.app/?_vercel_share=yoTiAdIyiCeuvLzCIy4bq2C7QZIeoHbw'
+          PREVIEW_URL: 'https://timenti-card-aist-v92-final-preview-r04iddifq-timenti.vercel.app/?_vercel_share=XyXk6I1Vcdckp3FabzsHiyiyarAgFYdZ'
         run: node tools/cs2_asset_probe/check_fullsite_v92.mjs work/fullsite-v92
       - name: Upload evidence
         if: always()
