@@ -27,13 +27,13 @@ jobs:
           "$CHROME_BIN" --version
       - name: Render scroll film states
         env:
-          PREVIEW_URL: 'https://timenti-aist-film-v8-kwo7v7mo8-timenti.vercel.app/?_vercel_share=2XCbcE0qNyIhyF3e9zj3YLOVf8NJlum7'
+          PREVIEW_URL: 'https://timenti-aist-film-v8-kgid4d8dt-timenti.vercel.app/?_vercel_share=PCI9eflsHOHtp2AMGA3FHE2fSFvkvI3G'
         run: node tools/cs2_asset_probe/check_film_v8.mjs work/aist-film-v8
       - name: Upload render evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: aist-film-v8-render-gate-fixed
+          name: aist-film-v8-render-gate-sticky-fixed
           path: work/aist-film-v8/**
           if-no-files-found: warn
           retention-days: 7
