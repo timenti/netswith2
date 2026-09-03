@@ -1,0 +1,57 @@
+name: Probe Exact CS2 Skin Assets
+
+on:
+  push:
+    branches: [aist-source2-asset-build]
+    paths:
+      - '.github/workflows/probe-cs2-skin-assets.yml'
+      - 'tools/cs2_asset_probe/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare Node browser probe
+        run: |
+          mkdir -p work/browser
+          cd work/browser
+          npm init -y >/dev/null
+          npm install playwright-core@1.55.0 >/dev/null
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          echo "CHROME_BIN=$CHROME_BIN" >> "$GITHUB_ENV"
+          test -n "$CHROME_BIN"
+          "$CHROME_BIN" --version
+
+      - name: Probe Skinshotter model, shader and texture export
+        env:
+          TARGET_URL: https://skinshotter.com/rifles/ak-47/case-hardened
+          TARGET_FLOAT: '0.0422822'
+          TARGET_SEED: '49'
+        run: |
+          node tools/cs2_asset_probe/probe_skinshotter.mjs work/browser/skinshotter
+
+      - name: Probe CS2Inspects exact inspect viewer network
+        env:
+          TARGET_URL: https://3dview.cs2inspects.com/?inspectlink=0010E6B0D2C5C6011807202C28053004389AE0B4E903403168B9017004D47A2891
+        run: |
+          node tools/cs2_asset_probe/probe_generic_viewer.mjs work/browser/cs2inspects
+
+      - name: Summarize interesting assets
+        run: |
+          python3 tools/cs2_asset_probe/summarize_assets.py work/browser > work/browser/summary.txt
+          cat work/browser/summary.txt
+
+      - name: Upload browser asset probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: aist-exact-skin-browser-probe
+          path: work/browser/**
+          if-no-files-found: error
+          retention-days: 7
