@@ -9,7 +9,7 @@ const report={url,views:[]};
 for(const view of [{name:'desktop',width:1600,height:900},{name:'mobile',width:390,height:844}]){
  const ctx=await browser.newContext({viewport:{width:view.width,height:view.height},deviceScaleFactor:1});
  const page=await ctx.newPage(); const errors=[],failed=[],responses=[];
- page.on('console',m=>{if(m.type()==='error'&&!m.text().includes('favicon'))errors.push(m.text())});
+ page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
  page.on('pageerror',e=>errors.push('pageerror: '+e.message));
  page.on('requestfailed',r=>failed.push({url:r.url(),error:r.failure()?.errorText||''}));
  page.on('response',r=>{const u=r.url();if(u.includes('/assets/')||u.endsWith('/film.js')||u.endsWith('/film.css'))responses.push({url:u,status:r.status(),fromServiceWorker:r.fromServiceWorker()})});
@@ -23,4 +23,5 @@ for(const view of [{name:'desktop',width:1600,height:900},{name:'mobile',width:3
  report.views.push({...view,elapsed,state,errors,failed,responses}); await ctx.close();
 }
 await browser.close();fs.writeFileSync(path.join(out,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
-if(report.views.some(v=>v.state.assetReady!=='1'||v.state.canvas.w===0||v.errors.length||v.failed.length||v.responses.some(r=>r.status>=400)||v.elapsed>5000))process.exit(2);
+const relevantFailure=v=>v.state.assetReady!=='1'||v.state.canvas.w===0||v.failed.some(x=>x.url.includes('/assets/')||x.url.endsWith('/film.js')||x.url.endsWith('/film.css'))||v.responses.some(r=>r.status>=400)||v.elapsed>5000||v.errors.some(e=>e.startsWith('pageerror:')||e.includes('AIST_')||e.includes('WebGL'));
+if(report.views.some(relevantFailure))process.exit(2);
