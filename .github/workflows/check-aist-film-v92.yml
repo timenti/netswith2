@@ -1,0 +1,38 @@
+name: Check A.I.S.T. Film v9.2
+
+on:
+  push:
+    branches: [aist-source2-asset-build]
+    paths:
+      - '.github/workflows/check-aist-film-v92.yml'
+      - 'tools/cs2_asset_probe/check_film_v92.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare browser
+        run: |
+          npm init -y >/dev/null
+          npm install playwright-core@1.55.0 >/dev/null
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          echo "CHROME_BIN=$CHROME_BIN" >> "$GITHUB_ENV"
+          test -n "$CHROME_BIN"
+      - name: Measure fast-first object readiness
+        env:
+          PREVIEW_URL: 'https://timenti-aist-film-v92-d8mqmxklj-timenti.vercel.app/?_vercel_share=Nlyl1AcjS0IMpeKUfItjdsWFPX0wVB4P'
+        run: node tools/cs2_asset_probe/check_film_v92.mjs work/aist-film-v92
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aist-film-v92-fast-first-gate
+          path: work/aist-film-v92/**
+          if-no-files-found: warn
+          retention-days: 7
