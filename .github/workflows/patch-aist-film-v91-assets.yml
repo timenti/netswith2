@@ -1,0 +1,49 @@
+name: Patch A.I.S.T. Film v9.1 Assets
+
+on:
+  push:
+    branches: [aist-source2-asset-build]
+    paths:
+      - '.github/workflows/patch-aist-film-v91-assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: aist-source2-asset-build
+      - name: Patch asset delivery and visible load state
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('generated/aist-film-v9/film.js')
+          s=p.read_text()
+          old="const film=document.getElementById('film'),stage=document.getElementById('stage'),step=document.getElementById('step'),title=document.getElementById('title'),body=document.getElementById('body'),micro=document.getElementById('micro'),phase=document.getElementById('phase');"
+          new=old+"\nconst assetStatus=document.getElementById('asset-status'); const setAssetStatus=(text,error=false)=>{if(!assetStatus)return;assetStatus.textContent=text;assetStatus.dataset.error=error?'1':'0'}; const withTimeout=(promise,label,ms=30000)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+' timeout')),ms))]); const ASSET_BASE='https://cdn.jsdelivr.net/gh/timenti/netswith2@761dcc873bb4975579151cf0f7ca0366be5051be/generated/aist-exact-ak/';"
+          if old not in s: raise SystemExit('film declaration anchor missing')
+          s=s.replace(old,new,1)
+          oldblock="const tl=new THREE.TextureLoader();const[albedo,orm,normal]=await Promise.all([\ntl.loadAsync('https://raw.githubusercontent.com/timenti/netswith2/aist-source2-asset-build/generated/aist-exact-ak/ak47_case_hardened_seed49_basecolor.png'),\ntl.loadAsync('https://raw.githubusercontent.com/timenti/netswith2/aist-source2-asset-build/generated/aist-exact-ak/ak47_case_hardened_seed49_orm.png'),\ntl.loadAsync('https://raw.githubusercontent.com/timenti/netswith2/aist-source2-asset-build/generated/aist-exact-ak/ak47_legacy_normal.png')]);"
+          newblock="const tl=new THREE.TextureLoader();let albedo,orm,normal,gltf; try{setAssetStatus('ЗАГРУЗКА ТЕКСТУР 1/2');[albedo,orm,normal]=await withTimeout(Promise.all([tl.loadAsync(ASSET_BASE+'ak47_case_hardened_seed49_basecolor.png'),tl.loadAsync(ASSET_BASE+'ak47_case_hardened_seed49_orm.png'),tl.loadAsync(ASSET_BASE+'ak47_legacy_normal.png')]),'textures');setAssetStatus('ЗАГРУЗКА 3D 2/2');gltf=await withTimeout(new GLTFLoader().loadAsync(ASSET_BASE+'weapon_rif_ak47.glb'),'model')}catch(e){setAssetStatus('3D НЕ ЗАГРУЗИЛСЯ — '+(e?.message||e),true);console.error('AIST_ASSET_LOAD_FAILED',e);throw e}"
+          if oldblock not in s: raise SystemExit('asset block anchor missing')
+          s=s.replace(oldblock,newblock,1)
+          oldg="const gltf=await new GLTFLoader().loadAsync('https://raw.githubusercontent.com/timenti/netswith2/aist-source2-asset-build/generated/aist-exact-ak/weapon_rif_ak47.glb');model=gltf.scene;"
+          if oldg not in s: raise SystemExit('gltf anchor missing')
+          s=s.replace(oldg,"model=gltf.scene;",1)
+          end="function schedule(){if(!raf)raf=requestAnimationFrame(render)}addEventListener('scroll',schedule,{passive:true});addEventListener('resize',()=>{resize();schedule()},{passive:true});addEventListener('orientationchange',()=>{frozenH=0;setTimeout(()=>{resize();schedule()},90)},{passive:true});render();"
+          rep="film.dataset.assetReady='1'; if(assetStatus)assetStatus.remove();\n"+end
+          if end not in s: raise SystemExit('render end anchor missing')
+          s=s.replace(end,rep,1)
+          p.write_text(s)
+          PY
+      - name: Commit v9.1 runtime
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add generated/aist-film-v9/film.js
+          git commit -m "Fix A.I.S.T. v9.1 3D asset delivery" || exit 0
+          git push origin HEAD:aist-source2-asset-build
