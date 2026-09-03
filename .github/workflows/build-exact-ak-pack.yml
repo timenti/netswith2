@@ -1,0 +1,31 @@
+name: Build Exact AK Case Hardened Pack
+
+on:
+  push:
+    branches: [aist-source2-asset-build]
+    paths:
+      - '.github/workflows/build-exact-ak-pack.yml'
+      - 'tools/cs2_asset_extract/download_exact_pack.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact model textures shaders and seed transforms
+        run: |
+          python3 tools/cs2_asset_extract/download_exact_pack.py work/exact-pack
+          du -sh work/exact-pack
+          find work/exact-pack -type f -printf '%p %s bytes\n' | sort
+      - name: Upload standalone exact source pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: aist-ak47-case-hardened-seed49-source-pack
+          path: work/exact-pack/**
+          if-no-files-found: error
+          retention-days: 7
