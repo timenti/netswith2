@@ -1,0 +1,51 @@
+name: Publish Exact AK Preview Assets
+
+on:
+  push:
+    branches: [aist-source2-asset-build]
+    paths:
+      - '.github/workflows/publish-exact-ak-preview-assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: aist-source2-asset-build
+          fetch-depth: 1
+
+      - name: Download verified exact bake v2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf generated/aist-exact-ak
+          mkdir -p generated/aist-exact-ak
+          gh run download 33778910351 \
+            --repo "$GITHUB_REPOSITORY" \
+            --name aist-ak47-case-hardened-seed49-baked-2048 \
+            --dir generated/aist-exact-ak
+          test -f generated/aist-exact-ak/weapon_rif_ak47.glb
+          test -f generated/aist-exact-ak/ak47_case_hardened_seed49_basecolor.png
+          test -f generated/aist-exact-ak/ak47_case_hardened_seed49_orm.png
+          test -f generated/aist-exact-ak/ak47_legacy_normal.png
+          cat generated/aist-exact-ak/bake.json
+          du -sh generated/aist-exact-ak
+
+      - name: Commit preview assets to experimental branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add generated/aist-exact-ak
+          if git diff --cached --quiet; then
+            echo "No asset changes"
+            exit 0
+          fi
+          git commit -m "Publish exact AK Case Hardened preview assets [skip ci]"
+          git push origin HEAD:aist-source2-asset-build
