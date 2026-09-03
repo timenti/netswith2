@@ -21,13 +21,13 @@ jobs:
           ref: aist-source2-asset-build
           fetch-depth: 1
 
-      - name: Download verified exact bake v2
+      - name: Download verified exact bake v3
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           rm -rf generated/aist-exact-ak
           mkdir -p generated/aist-exact-ak
-          gh run download 33778910351 \
+          gh run download 33782427482 \
             --repo "$GITHUB_REPOSITORY" \
             --name aist-ak47-case-hardened-seed49-baked-2048 \
             --dir generated/aist-exact-ak
@@ -35,6 +35,7 @@ jobs:
           test -f generated/aist-exact-ak/ak47_case_hardened_seed49_basecolor.png
           test -f generated/aist-exact-ak/ak47_case_hardened_seed49_orm.png
           test -f generated/aist-exact-ak/ak47_legacy_normal.png
+          grep -q 'model_mesh1_g_tNormal' generated/aist-exact-ak/bake.json
           cat generated/aist-exact-ak/bake.json
           du -sh generated/aist-exact-ak
 
@@ -47,5 +48,5 @@ jobs:
             echo "No asset changes"
             exit 0
           fi
-          git commit -m "Publish exact AK Case Hardened preview assets [skip ci]"
+          git commit -m "Publish corrected exact AK Case Hardened assets [skip ci]"
           git push origin HEAD:aist-source2-asset-build
