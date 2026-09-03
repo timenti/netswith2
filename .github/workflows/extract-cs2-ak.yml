@@ -1,0 +1,165 @@
+name: Extract CS2 AK Source2 Asset
+
+on:
+  push:
+    branches: [aist-source2-asset-build]
+    paths:
+      - '.github/workflows/extract-cs2-ak.yml'
+      - 'tools/cs2_asset_extract/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install utilities
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip file python3
+
+      - name: Download DepotDownloader 3.4.0
+        run: |
+          curl -fsSL -o /tmp/dd.zip https://github.com/SteamRE/DepotDownloader/releases/download/DepotDownloader_3.4.0/DepotDownloader-linux-x64.zip
+          mkdir -p tools-bin/dd
+          unzip -q /tmp/dd.zip -d tools-bin/dd
+          chmod +x tools-bin/dd/DepotDownloader
+
+      - name: Download Source2Viewer CLI 20.0
+        run: |
+          curl -fsSL -o /tmp/vrf.zip https://github.com/ValveResourceFormat/ValveResourceFormat/releases/download/20.0/cli-linux-x64.zip
+          mkdir -p tools-bin/vrf
+          unzip -q /tmp/vrf.zip -d tools-bin/vrf
+          chmod +x tools-bin/vrf/Source2Viewer-CLI
+
+      - name: Pull only CS2 VPK directory
+        run: |
+          mkdir -p work/depot
+          printf '%s\n' 'game/csgo/pak01_dir.vpk' > work/dir-filelist.txt
+          tools-bin/dd/DepotDownloader -app 730 -depot 2347770 -filelist work/dir-filelist.txt -dir work/depot
+          test -f work/depot/game/csgo/pak01_dir.vpk
+          ls -lh work/depot/game/csgo/pak01_dir.vpk
+
+      - name: Resolve archive segments for AK model
+        run: |
+          python3 tools/cs2_asset_extract/vpk_index.py \
+            work/depot/game/csgo/pak01_dir.vpk \
+            'weapons/models/ak47/weapon_rif_ak47.vmdl_c' \
+            > work/ak-index.json
+          cat work/ak-index.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('work/ak-index.json'))
+          idx=d['archive_index']
+          assert isinstance(idx,int) and idx < 32767, d
+          with open('work/segment-filelist.txt','w') as f:
+              f.write('game/csgo/pak01_dir.vpk\n')
+              f.write(f'game/csgo/pak01_{idx:03d}.vpk\n')
+          print(open('work/segment-filelist.txt').read())
+          PY
+
+      - name: Pull AK archive segment only
+        run: |
+          tools-bin/dd/DepotDownloader -app 730 -depot 2347770 -filelist work/segment-filelist.txt -dir work/depot
+          ls -lh work/depot/game/csgo/pak01_*.vpk
+
+      - name: Extract compiled AK model
+        run: |
+          mkdir -p work/extracted
+          tools-bin/vrf/Source2Viewer-CLI \
+            -i work/depot/game/csgo/pak01_dir.vpk \
+            -o work/extracted \
+            --vpk_filepath 'weapons/models/ak47/weapon_rif_ak47.vmdl_c'
+          find work/extracted -maxdepth 6 -type f -print
+          test -f work/extracted/weapons/models/ak47/weapon_rif_ak47.vmdl_c
+
+      - name: Inspect Source2 resource dependencies
+        run: |
+          tools-bin/vrf/Source2Viewer-CLI \
+            -i work/extracted/weapons/models/ak47/weapon_rif_ak47.vmdl_c \
+            --all > work/ak-resource.txt 2>&1 || true
+          python3 tools/cs2_asset_extract/deps_from_resource.py \
+            work/ak-resource.txt \
+            work/extracted/weapons/models/ak47/weapon_rif_ak47.vmdl_c \
+            > work/dependencies.txt
+          echo '--- dependencies ---'
+          cat work/dependencies.txt
+
+      - name: Resolve dependency VPK segments
+        run: |
+          python3 tools/cs2_asset_extract/build_segment_filelist.py \
+            work/depot/game/csgo/pak01_dir.vpk \
+            work/dependencies.txt \
+            work/dependency-segments.txt
+          echo '--- depot files to fetch ---'
+          cat work/dependency-segments.txt
+
+      - name: Pull dependency archive segments
+        run: |
+          if [ -s work/dependency-segments.txt ]; then
+            tools-bin/dd/DepotDownloader -app 730 -depot 2347770 -filelist work/dependency-segments.txt -dir work/depot
+          fi
+          du -sh work/depot
+          ls -lh work/depot/game/csgo/pak01_*.vpk | tail -30
+
+      - name: Extract AK dependency resources
+        run: |
+          python3 tools/cs2_asset_extract/extract_deps.py \
+            tools-bin/vrf/Source2Viewer-CLI \
+            work/depot/game/csgo/pak01_dir.vpk \
+            work/dependencies.txt \
+            work/extracted
+          find work/extracted -type f | sort > work/extracted-files.txt
+          cat work/extracted-files.txt
+
+      - name: Export base AK to GLB
+        run: |
+          mkdir -p work/out
+          tools-bin/vrf/Source2Viewer-CLI \
+            -i work/extracted/weapons/models/ak47/weapon_rif_ak47.vmdl_c \
+            -o work/out/ak47-source2-base.glb \
+            -d \
+            --gltf_export_format glb \
+            --gltf_export_materials \
+            --gltf_textures_adapt \
+            --gltf_export_extras \
+            > work/glb-export.log 2>&1 || true
+          cat work/glb-export.log
+          if [ -f work/out/ak47-source2-base.glb ]; then
+            ls -lh work/out/ak47-source2-base.glb
+          else
+            echo 'GLB export not complete yet; dependency report retained for next pass.'
+          fi
+
+      - name: Record exact inspected skin parameters
+        run: |
+          cat > work/out/inspect-item.json <<'JSON'
+          {
+            "inspect_link": "https://3dview.cs2inspects.com/?inspectlink=0010E6B0D2C5C6011807202C28053004389AE0B4E903403168B9017004D47A2891",
+            "def_index": 7,
+            "paint_kit": 44,
+            "paint_seed": 49,
+            "float": 0.0422822,
+            "target": "AK-47 | Case Hardened"
+          }
+          JSON
+
+      - name: Upload extraction diagnostics and GLB if produced
+        uses: actions/upload-artifact@v4
+        with:
+          name: aist-cs2-ak-source2-pass1
+          path: |
+            work/out/**
+            work/ak-index.json
+            work/ak-resource.txt
+            work/dependencies.txt
+            work/dependency-segments.txt
+            work/extracted-files.txt
+            work/glb-export.log
+          if-no-files-found: error
+          retention-days: 7
