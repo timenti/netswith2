@@ -21,15 +21,16 @@ jobs:
           set -euxo pipefail
           mkdir -p work/api
           base='https://3dviewapi.cs2inspects.com'
-          curl -fsS -D work/api/model7.headers -o work/api/model7.json "$base/model/7"
-          curl -fsS -D work/api/model7-lv.headers -o work/api/model7-lv.json "$base/model/7?lv=1"
-          curl -fsS -D work/api/resolve.headers -H 'content-type: application/json' \
+          header='X-Site-Password: banana'
+          curl -fsS -H "$header" -D work/api/model7.headers -o work/api/model7.json "$base/model/7"
+          curl -fsS -H "$header" -D work/api/model7-lv.headers -o work/api/model7-lv.json "$base/model/7?lv=1"
+          curl -fsS -H "$header" -D work/api/resolve.headers -H 'content-type: application/json' \
             -d '{"item":7,"paint":44,"seed":49,"wear":0.04228220134973526,"lv":false}' \
             -o work/api/resolve.json "$base/resolve/raw"
-          curl -fsS -D work/api/resolve-lv.headers -H 'content-type: application/json' \
+          curl -fsS -H "$header" -D work/api/resolve-lv.headers -H 'content-type: application/json' \
             -d '{"item":7,"paint":44,"seed":49,"wear":0.04228220134973526,"lv":true}' \
             -o work/api/resolve-lv.json "$base/resolve/raw"
-          for f in work/api/*.json; do echo "===== $f ====="; head -c 20000 "$f"; echo; done
+          for f in work/api/*.json; do echo "===== $f ====="; head -c 30000 "$f"; echo; done
       - name: Upload raw API payloads
         uses: actions/upload-artifact@v4
         with:
