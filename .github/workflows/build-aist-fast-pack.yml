@@ -1,0 +1,72 @@
+name: Build A.I.S.T. Fast 3D Pack
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [aist-source2-asset-build]
+    paths:
+      - '.github/workflows/build-aist-fast-pack.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: aist-source2-asset-build
+          fetch-depth: 1
+
+      - name: Build lite Source 2 GLB
+        run: |
+          mkdir -p generated/aist-fast-pack
+          python3 - <<'PY'
+          import struct,json,copy,pathlib
+          src=pathlib.Path('generated/aist-exact-ak/weapon_rif_ak47.glb')
+          dst=pathlib.Path('generated/aist-fast-pack/ak47-lite.glb')
+          data=src.read_bytes(); _,_,_=struct.unpack_from('<III',data,0); off=12; chunks=[]
+          while off<len(data):
+              clen,ctype=struct.unpack_from('<II',data,off); off+=8
+              chunks.append((ctype,data[off:off+clen])); off+=clen
+          j=json.loads(chunks[0][1].decode('utf-8').rstrip('\x00 ')); binary=chunks[1][1]
+          old_accs=[42,43,44,49]; acc=[]; bvs=[]; buf=bytearray(); remap={}
+          for old in old_accs:
+              a=copy.deepcopy(j['accessors'][old]); bv=j['bufferViews'][a['bufferView']]
+              raw=binary[bv.get('byteOffset',0):bv.get('byteOffset',0)+bv['byteLength']]
+              while len(buf)%4: buf.append(0)
+              nb={'buffer':0,'byteOffset':len(buf),'byteLength':len(raw)}
+              if 'target' in bv: nb['target']=bv['target']
+              bvs.append(nb); buf.extend(raw); a['bufferView']=len(bvs)-1; a.pop('byteOffset',None)
+              remap[old]=len(acc); acc.append(a)
+          prim={'attributes':{'POSITION':remap[42],'TEXCOORD_0':remap[43],'NORMAL':remap[44]},'indices':remap[49],'mode':4}
+          outj={'asset':{'version':'2.0','generator':'TIMENTI A.I.S.T. fast Source2 pack'},'scene':0,'scenes':[{'nodes':[0]}],'nodes':[{'name':'body_legacy','mesh':0}],'meshes':[{'name':'body_legacy','primitives':[prim]}],'accessors':acc,'bufferViews':bvs,'buffers':[{'byteLength':len(buf)}]}
+          jb=json.dumps(outj,separators=(',',':')).encode()
+          while len(jb)%4: jb+=b' '
+          bb=bytes(buf)
+          while len(bb)%4: bb+=b'\x00'
+          total=12+8+len(jb)+8+len(bb)
+          out=struct.pack('<III',0x46546C67,2,total)+struct.pack('<II',len(jb),0x4E4F534A)+jb+struct.pack('<II',len(bb),0x004E4942)+bb
+          dst.write_bytes(out)
+          print('lite GLB bytes:',dst.stat().st_size)
+          PY
+
+      - name: Build 1024 WebP hero textures
+        run: |
+          if command -v magick >/dev/null; then IM=magick; else IM=convert; fi
+          $IM generated/aist-exact-ak/ak47_case_hardened_seed49_basecolor.png -resize 1024x1024 -quality 88 generated/aist-fast-pack/basecolor-1024.webp
+          $IM generated/aist-exact-ak/ak47_case_hardened_seed49_orm.png -resize 1024x1024 -quality 86 generated/aist-fast-pack/orm-1024.webp
+          $IM generated/aist-exact-ak/ak47_legacy_normal.png -resize 1024x1024 -quality 92 generated/aist-fast-pack/normal-1024.webp
+          ls -lh generated/aist-fast-pack
+          du -ch generated/aist-fast-pack/* | tail -1
+
+      - name: Commit fast pack
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add generated/aist-fast-pack
+          if git diff --cached --quiet; then echo 'No changes'; exit 0; fi
+          git commit -m 'Publish A.I.S.T. fast-first 3D pack [skip ci]'
+          git push origin HEAD:aist-source2-asset-build
