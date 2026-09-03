@@ -12,7 +12,7 @@ for(const view of [{name:'desktop',width:1600,height:900,shots:[['hero',.02],['s
  page.on('console',m=>{if(m.type()==='error')errors.push(m.text())}); page.on('pageerror',e=>errors.push('pageerror: '+e.message));
  page.on('requestfailed',r=>failed.push({url:r.url(),error:r.failure()?.errorText||''})); page.on('response',r=>{if(r.status()>=400)bad.push({url:r.url(),status:r.status()})});
  await page.goto(url,{waitUntil:'domcontentloaded',timeout:120000});
- await page.waitForFunction((w,h)=>{const c=document.querySelector('canvas'),f=document.getElementById('film');return c&&f&&c.width>=w&&c.height>=h&&f.offsetHeight>h*5},[view.width,view.height],{timeout:120000});
+ await page.waitForFunction(([w,h])=>{const c=document.querySelector('canvas'),f=document.getElementById('film');return c&&f&&c.width>=w&&c.height>=h&&f.offsetHeight>h*5},[view.width,view.height],{timeout:120000});
  const states=[];
  for(const [name,p] of view.shots){
   await page.evaluate((p)=>{const f=document.getElementById('film'),vh=window.innerHeight,travel=Math.max(1,f.offsetHeight-vh);scrollTo(0,travel*p)},p);
