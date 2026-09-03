@@ -1,0 +1,38 @@
+name: Check Full TIMENTI A.I.S.T. v9.2
+
+on:
+  push:
+    branches: [aist-source2-asset-build]
+    paths:
+      - '.github/workflows/check-fullsite-aist-v92.yml'
+      - 'tools/cs2_asset_probe/check_fullsite_v92.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare browser
+        run: |
+          npm init -y >/dev/null
+          npm install playwright-core@1.55.0 >/dev/null
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          echo "CHROME_BIN=$CHROME_BIN" >> "$GITHUB_ENV"
+          test -n "$CHROME_BIN"
+      - name: Verify preload from homepage to A.I.S.T.
+        env:
+          PREVIEW_URL: 'https://timenti-card-aist-v92-full-preview-mg5ko0akl-timenti.vercel.app/?_vercel_share=sH8xg3MKXPAiUAJNhDVR6KHbHXsz6QNW'
+        run: node tools/cs2_asset_probe/check_fullsite_v92.mjs work/fullsite-v92
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fullsite-aist-v92-preload-gate
+          path: work/fullsite-v92/**
+          if-no-files-found: warn
+          retention-days: 7
