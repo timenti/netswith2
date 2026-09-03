@@ -1,0 +1,44 @@
+name: Bundle A.I.S.T. Site Runtime
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [aist-source2-asset-build]
+    paths:
+      - '.github/workflows/bundle-aist-site-runtime.yml'
+      - 'generated/aist-film-v92/site-runtime.js'
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: aist-source2-asset-build
+          fetch-depth: 1
+      - name: Bundle Three.js runtime
+        run: |
+          npm init -y >/dev/null
+          npm install --silent three@0.180.0 esbuild@0.25.9
+          npx esbuild generated/aist-film-v92/site-runtime.js \
+            --bundle \
+            --format=esm \
+            --platform=browser \
+            --target=es2020 \
+            --minify \
+            --outfile=generated/aist-film-v92/site-runtime.bundle.js
+          test -s generated/aist-film-v92/site-runtime.bundle.js
+          ! grep -q "from['\"]three['\"]" generated/aist-film-v92/site-runtime.bundle.js
+          ls -lh generated/aist-film-v92/site-runtime.bundle.js
+      - name: Commit bundled runtime
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add generated/aist-film-v92/site-runtime.bundle.js
+          if git diff --cached --quiet; then echo 'No bundle changes'; exit 0; fi
+          git commit -m 'Publish bundled A.I.S.T. v9.2 site runtime [skip ci]'
+          git push origin HEAD:aist-source2-asset-build
