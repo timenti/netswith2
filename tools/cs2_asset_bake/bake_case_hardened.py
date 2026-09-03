@@ -77,8 +77,8 @@ def main():
     def T(name): return load_rgba(files[f'resolve_t0_p0_{name}'])
     ao=srgb_to_linear(T('g_tAmbientOcclusion')); masks=T('g_tMasks'); base_color=srgb_to_linear(T('g_tColor')); base_metal=T('g_tMetalness')
     pattern=srgb_to_linear(T('g_tPattern')); wear_tex=T('g_tWear'); grunge=srgb_to_linear(T('g_tGrunge'))
-    # Exact resolve target is body_legacy => mesh0 normal map, never body_hd/mesh1.
-    normal=load_rgba(files['model_mesh0_g_tNormal'])
+    # api-model7 maps mesh 1 to body_legacy / ak47.vmat; mesh 0 is body_hd.
+    normal=load_rgba(files['model_mesh1_g_tNormal'])
     if np.max(np.abs(ao[...,0]-ao[...,1]))>0.02: ao[...,1]=ao[...,0]
     base_scale=float(var['g_flUvScale1'])
     pat0,pat1=transform_matrix(base_scale,float(var['g_flPatternTexCoordScale']),rng['econ_instance.g_flPatternTexCoordRotation.x'],rng['econ_instance.g_vPatternTexCoordOffset.x'],rng['econ_instance.g_vPatternTexCoordOffset.y'])
@@ -101,6 +101,6 @@ def main():
     color8=np.empty_like(out_color,dtype=np.uint8); color8[...,:3]=(np.clip(linear_to_srgb(np.clip(out_color[...,:3],0,1)),0,1)*255+0.5).astype(np.uint8); color8[...,3]=(np.clip(out_color[...,3],0,1)*255+0.5).astype(np.uint8); Image.fromarray(color8,'RGBA').save(out/'ak47_case_hardened_seed49_basecolor.png',optimize=True)
     orm=np.ones((res,res,4),np.uint8)*255; orm[...,1]=(np.clip(out_metal[...,0],0,1)*255+0.5).astype(np.uint8); orm[...,2]=(np.clip(out_metal[...,1],0,1)*255+0.5).astype(np.uint8); Image.fromarray(orm,'RGBA').save(out/'ak47_case_hardened_seed49_orm.png',optimize=True)
     n=normal[...,:3].copy(); x=n[...,0]*2-1; y=n[...,1]*2-1; z=np.sqrt(np.maximum(0,1-x*x-y*y)); nrgb=np.stack([(x+1)*.5,(y+1)*.5,(z+1)*.5],axis=-1); Image.fromarray((np.clip(nrgb,0,1)*255+0.5).astype(np.uint8),'RGB').save(out/'ak47_legacy_normal.png',optimize=True)
-    bake_meta={'item':meta['item'],'paint':meta['paint'],'seed':meta['seed'],'wear':meta['wear'],'resolution':res,'mesh_group':meta['mesh_group'],'normal_source':'model_mesh0_g_tNormal','base_scale':base_scale,'pattern_xform':[pat0.tolist(),pat1.tolist()],'wear_xform':[wear0.tolist(),wear1.tolist()],'grunge_xform':[gru0.tolist(),gru1.tolist()]}; (out/'bake.json').write_text(json.dumps(bake_meta,indent=2))
+    bake_meta={'item':meta['item'],'paint':meta['paint'],'seed':meta['seed'],'wear':meta['wear'],'resolution':res,'mesh_group':meta['mesh_group'],'normal_source':'model_mesh1_g_tNormal','base_scale':base_scale,'pattern_xform':[pat0.tolist(),pat1.tolist()],'wear_xform':[wear0.tolist(),wear1.tolist()],'grunge_xform':[gru0.tolist(),gru1.tolist()]}; (out/'bake.json').write_text(json.dumps(bake_meta,indent=2))
 
 if __name__=='__main__': main()
