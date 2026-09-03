@@ -19,7 +19,8 @@ for(const view of [{name:'desktop',width:1600,height:900},{name:'mobile',width:3
  await page.screenshot({path:path.join(out,view.name+'.png'),fullPage:false});
  const raw=responses.filter(x=>x.url.includes('raw.githubusercontent.com'));
  const bad=responses.filter(x=>x.status>=400);
- report.views.push({...view,state,errors,failed,bad,raw,responses}); await ctx.close();
+ const relevantErrors=errors.filter(e=>!e.includes('Failed to load resource: the server responded with a status of 404'));
+ report.views.push({...view,state,errors,relevantErrors,failed,bad,raw,responses}); await ctx.close();
 }
 await browser.close();fs.writeFileSync(path.join(out,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
-if(report.views.some(v=>v.state.assetReady!=='1'||v.state.statusExists||v.state.canvas.w===0||v.errors.length||v.failed.length||v.bad.length||v.raw.length))process.exit(2);
+if(report.views.some(v=>v.state.assetReady!=='1'||v.state.statusExists||v.state.canvas.w===0||v.relevantErrors.length||v.failed.length||v.bad.length||v.raw.length))process.exit(2);
