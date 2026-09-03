@@ -1,0 +1,39 @@
+name: Probe CS2Inspects Raw Asset APIs
+
+on:
+  push:
+    branches: [aist-source2-asset-build]
+    paths:
+      - '.github/workflows/probe-cs2inspects-api.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Query raw AK model and exact Case Hardened resolve
+        run: |
+          set -euxo pipefail
+          mkdir -p work/api
+          base='https://3dviewapi.cs2inspects.com'
+          curl -fsS -D work/api/model7.headers -o work/api/model7.json "$base/model/7"
+          curl -fsS -D work/api/model7-lv.headers -o work/api/model7-lv.json "$base/model/7?lv=1"
+          curl -fsS -D work/api/resolve.headers -H 'content-type: application/json' \
+            -d '{"item":7,"paint":44,"seed":49,"wear":0.04228220134973526,"lv":false}' \
+            -o work/api/resolve.json "$base/resolve/raw"
+          curl -fsS -D work/api/resolve-lv.headers -H 'content-type: application/json' \
+            -d '{"item":7,"paint":44,"seed":49,"wear":0.04228220134973526,"lv":true}' \
+            -o work/api/resolve-lv.json "$base/resolve/raw"
+          for f in work/api/*.json; do echo "===== $f ====="; head -c 20000 "$f"; echo; done
+      - name: Upload raw API payloads
+        uses: actions/upload-artifact@v4
+        with:
+          name: aist-cs2inspects-raw-api
+          path: work/api/**
+          if-no-files-found: error
+          retention-days: 7
