@@ -21,7 +21,6 @@ jobs:
       - name: Prepare Node browser probe
         run: |
           mkdir -p work/browser
-          cd work/browser
           npm init -y >/dev/null
           npm install playwright-core@1.55.0 >/dev/null
           CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
