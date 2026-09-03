@@ -27,7 +27,7 @@ jobs:
           import struct,json,copy,pathlib
           src=pathlib.Path('generated/aist-exact-ak/weapon_rif_ak47.glb')
           dst=pathlib.Path('generated/aist-fast-pack/ak47-lite.glb')
-          data=src.read_bytes(); _,_,_=struct.unpack_from('<III',data,0); off=12; chunks=[]
+          data=src.read_bytes(); off=12; chunks=[]
           while off<len(data):
               clen,ctype=struct.unpack_from('<II',data,off); off+=8
               chunks.append((ctype,data[off:off+clen])); off+=clen
@@ -55,10 +55,22 @@ jobs:
 
       - name: Build 1024 WebP hero textures
         run: |
-          if command -v magick >/dev/null; then IM=magick; else IM=convert; fi
-          $IM generated/aist-exact-ak/ak47_case_hardened_seed49_basecolor.png -resize 1024x1024 -quality 88 generated/aist-fast-pack/basecolor-1024.webp
-          $IM generated/aist-exact-ak/ak47_case_hardened_seed49_orm.png -resize 1024x1024 -quality 86 generated/aist-fast-pack/orm-1024.webp
-          $IM generated/aist-exact-ak/ak47_legacy_normal.png -resize 1024x1024 -quality 92 generated/aist-fast-pack/normal-1024.webp
+          python3 -m pip install --quiet pillow
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          src=Path('generated/aist-exact-ak'); dst=Path('generated/aist-fast-pack')
+          jobs=[
+            ('ak47_case_hardened_seed49_basecolor.png','basecolor-1024.webp',88),
+            ('ak47_case_hardened_seed49_orm.png','orm-1024.webp',86),
+            ('ak47_legacy_normal.png','normal-1024.webp',92),
+          ]
+          for inp,out,q in jobs:
+              im=Image.open(src/inp).convert('RGB')
+              im.thumbnail((1024,1024),Image.Resampling.LANCZOS)
+              im.save(dst/out,'WEBP',quality=q,method=6)
+              print(out,(dst/out).stat().st_size)
+          PY
           ls -lh generated/aist-fast-pack
           du -ch generated/aist-fast-pack/* | tail -1
 
