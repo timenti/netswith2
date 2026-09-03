@@ -1,0 +1,56 @@
+name: Bake Exact AK Case Hardened
+
+on:
+  push:
+    branches: [aist-source2-asset-build]
+    paths:
+      - '.github/workflows/bake-exact-ak-case-hardened.yml'
+      - 'tools/cs2_asset_bake/**'
+      - 'tools/cs2_asset_extract/download_exact_pack.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare Python baker
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy pillow texture2ddecoder
+
+      - name: Download exact Source 2 skin pack
+        run: |
+          python3 tools/cs2_asset_extract/download_exact_pack.py work/exact-pack
+          test -f work/exact-pack/manifest.json
+          test -f work/exact-pack/api-resolve.json
+
+      - name: Bake exact Case Hardened textures at 2048
+        run: |
+          python3 tools/cs2_asset_bake/bake_case_hardened.py work/exact-pack work/baked 2048
+
+      - name: Add authentic Source 2 AK mesh
+        run: |
+          cp work/exact-pack/assets/data/weapons/models/ak47/weapon_rif_ak47.glb work/baked/weapon_rif_ak47.glb
+          ls -lh work/baked
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          for p in sorted(Path('work/baked').glob('*.png')):
+              im=Image.open(p)
+              print(p.name, im.size, im.mode, p.stat().st_size)
+          print('GLB', Path('work/baked/weapon_rif_ak47.glb').stat().st_size)
+          PY
+
+      - name: Upload exact baked standalone asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: aist-ak47-case-hardened-seed49-baked-2048
+          path: work/baked/**
+          if-no-files-found: error
+          retention-days: 7
