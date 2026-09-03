@@ -27,14 +27,14 @@ jobs:
           "$CHROME_BIN" --version
       - name: Render desktop and mobile exact Source2 object
         env:
-          PREVIEW_URL: https://timenti-aist-exact-ak-preview-djpmqkwil-timenti.vercel.app
+          PREVIEW_URL: 'https://timenti-aist-exact-ak-preview-ef5h8reae-timenti.vercel.app/?_vercel_share=8RIFH7kwNGiDGLKbrlVE41vqdqHZg8It'
         run: |
           node tools/cs2_asset_probe/check_exact_preview.mjs work/exact-preview-check
       - name: Upload render-gate evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: exact-ak-preview-render-gate
+          name: exact-ak-preview-render-gate-fixed
           path: work/exact-preview-check/**
           if-no-files-found: warn
           retention-days: 7
