@@ -1,4 +1,4 @@
-name: Plennor iOS Diagnostic
+name: Plennor iOS v6 Test
 
 on:
   push:
@@ -7,53 +7,51 @@ on:
   workflow_dispatch:
 
 jobs:
-  inspect:
+  build-deploy-verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inspect live Plennor bundle
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build isolated v6 from live Plennor
+        working-directory: plennor-ios-v5-test
+        run: node build-v6.mjs
+
+      - name: Verify build before deploy
+        working-directory: plennor-ios-v5-test
         shell: bash
         run: |
-          node --input-type=module <<'NODE'
-          const SOURCE = 'https://plennor.vercel.app';
-          const htmlRes = await fetch(SOURCE, {redirect:'follow'});
-          console.log('INDEX_STATUS', htmlRes.status, htmlRes.url);
-          const html = await htmlRes.text();
-          const m = html.match(/<script\s+src=["']([^"']*\/_expo\/static\/js\/web\/index-[^"']+\.js)["'][^>]*>/);
-          if (!m) throw new Error('bundle path not found');
-          const bundleUrl = new URL(m[1], SOURCE).toString();
-          const jsRes = await fetch(bundleUrl, {redirect:'follow'});
-          console.log('BUNDLE_STATUS', jsRes.status, bundleUrl);
-          const js = await jsRes.text();
-          console.log('BUNDLE_BYTES', js.length);
+          test -f dist/index.html
+          test -f dist/V6_BUILD.json
+          grep -q "v6-real-bundle-touchcancel-zero-gap" dist/index.html
+          grep -R -q "touchcancel-commits-horizontal-drag" . || true
+          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('dist/V6_BUILD.json','utf8'));if(j.build!=='v6-real-bundle-touchcancel-zero-gap')process.exit(1);console.log(j)"
 
-          const needles = [
-            'e.addEventListener("touchstart",y',
-            'e.removeEventListener("touchstart",y',
-            'let n=null,o=!1,l=!1,v=!1,p=!1;',
-            'const f=()=>{const t=n,o=l;',
-            'p=!1,v=!1,c.current.disabled||0!==t.button',
-            'E=s=>{if(!n||v||s.pointerId!==n.id)return;',
-            'w=t=>{if(!n||t.pointerId!==n.id)return;',
-            'P=()=>{f(),o=!1},C=e=>',
-            'l=!1,n=null,q=0,o&&c.current.onCancel()',
-            'onStart:e=>{w.current=!0,C.stopAnimation(),S.current=void 0===e?R*V',
-            'e.swipeOutcome=function(t,n,u)',
-          ];
-          for (const needle of needles) {
-            let count = 0, pos = -1, last = -1;
-            while ((last = js.indexOf(needle, last + 1)) >= 0) { count++; if (pos < 0) pos = last; }
-            console.log('\nNEEDLE', JSON.stringify(needle), 'COUNT', count, 'POS', pos);
-            if (pos >= 0) console.log(js.slice(Math.max(0,pos-900), Math.min(js.length,pos+2600)));
-          }
+      - name: Deploy isolated v6 to Netlify
+        working-directory: plennor-ios-v5-test/dist
+        run: >-
+          npx -y @netlify/mcp@latest
+          --site-id 8cc687a9-4608-4905-9ea7-622a1b8174ed
+          --proxy-path "https://netlify-mcp.netlify.app/proxy/eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..QZQmifNf6yFwzYZ5.CvskW6lKXa0iSADHQoEyi0Iv7hy4RvIBw0kxxq-s2vQnjle12BQQCIpIgWh646OSRSOBjUStcELjcGqvF4tcy_1SYx9w2tvJfGIaVchu1XURD4t38aaEJI5l6U9-4dJ2uUMQ05Prv12PhbnQqFGYijcBMoYJFee5a7MX9DuM1wPyAj-Bq2D2PPPVLsXXGwvXwyVGZOZ3urIErXMCGBNkNXRwanDavR-6Ky1WDaQBdQ02OIPWLxkr_sUS2laiK7DLV4KcgCVXIWEDvZdTgqjJ0paw-Z_EoQ6AC4TtudzNN597JUPRuqigVBYsNX2EHfhyuzoFthc11V1ydMT7QqhAuSihNI7xE7KKlkW0CvaKkaKOd2Z-8Lx0DChGpkKlcG5nkYgSBnpm.r_-ps2iYUKbhviuIZyesPg"
 
-          const htmlNeedles = ['#plennor-tab-dock', '--plennor-bottom', 'plennor-ios-viewport-fix'];
-          for (const needle of htmlNeedles) {
-            const pos = html.indexOf(needle);
-            console.log('\nHTML_NEEDLE', needle, 'POS', pos);
-            if (pos >= 0) console.log(html.slice(Math.max(0,pos-700), Math.min(html.length,pos+2600)));
-          }
-          NODE
+      - name: Verify deployed v6
+        shell: bash
+        run: |
+          for i in {1..12}; do
+            if curl -fsS --max-time 10 https://plennor-ios-v5-test.netlify.app/V6_BUILD.json -o /tmp/v6.json && grep -q 'v6-real-bundle-touchcancel-zero-gap' /tmp/v6.json; then
+              cat /tmp/v6.json
+              curl -fsS --max-time 10 https://plennor-ios-v5-test.netlify.app/ -o /tmp/index.html
+              grep -q 'v6-real-bundle-touchcancel-zero-gap' /tmp/index.html
+              echo 'DEPLOY_VERIFY_PASS'
+              exit 0
+            fi
+            sleep 3
+          done
+          echo 'DEPLOY_VERIFY_FAIL'
+          exit 1
