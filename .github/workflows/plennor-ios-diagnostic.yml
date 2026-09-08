@@ -43,7 +43,7 @@ jobs:
         run: >-
           npx -y @netlify/mcp@latest
           --site-id 8cc687a9-4608-4905-9ea7-622a1b8174ed
-          --proxy-path "https://netlify-mcp.netlify.app/proxy/eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..QZQmifNf6yFwzYZ5.CvskW6lKXa0iSADHQoEyi0Iv7hy4RvIBw0kxxq-s2vQnjle12BQQCIpIgWh646OSRSOBjUStcELjcGqvF4tcy_1SYx9w2tvJfGIaVchu1XURD4t38aaEJI5l6U9-4dJ2uUMQ05Prv12PhbnQqFGYijcBMoYJFee5a7MX9DuM1wPyAj-Bq2D2PPPVLsXXGwvXwyVGZOZ3urIErXMCGBNkNXRwanDavR-6Ky1WDaQBdQ02OIPWLxkr_sUS2laiK7DLV4KcgCVXIWEDvZdTgqjJ0paw-Z_EoQ6AC4TtudzNN597JUPRuqigVBYsNX2EHfhyuzoFthc11V1ydMT7QqhAuSihNI7xE7KKlkW0CvaKkaKOd2Z-8Lx0DChGpkKlcG5nkYgSBnpm.r_-ps2iYUKbhviuIZyesPg"
+          --proxy-path "https://netlify-mcp.netlify.app/proxy/eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..qGC0hiq3Wm-UCbML.MU0S2vYJre_Q_E9_4mhYZbum1JxvJky747vZWwaWbS_xnvxWtc_rRIZIOcMKjBWfB8Qyml3FCxOLY1CyP2r8I9FIegd7_civB1yU1j3B9ZxNDcucHjA7yJTWdcyTb6afvgAVpD7x-g_teluLY-9SmltyPaMO_nJGCV617Hjav2280od7gq2tqYg1eeokNvWJgQrZZskvR0iwgeW_xZV7nQKkVZKzpA6cQCtaWNFfuijfEVxSBOKpdCgFDPHZP10RJ8YYhThWr23XLTAqnNUFIvqZ8Ncx9L7F2mnDZPq00XfqRy3Le4piKZo9XrvNEke8toTVFgy7KspWxfF28iMeg_e3APdneoAauO1TtzrQHLGZAilZH3Fe1m5nacNaQa4BB4j_SUM4.GFLgsy4M91DVGJaamTyvnw"
 
       - name: Verify deployed v8
         shell: bash
