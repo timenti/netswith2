@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+  <meta name="theme-color" content="#080808" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Plennor v5 Test" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Plennor v5 Test</title>
+  <link rel="apple-touch-icon" href="https://plennor-euuil4c51-timenti.vercel.app/icons/apple-touch-icon.png" />
+  <style id="plennor-shell">
+    :root { color-scheme: dark; --plennor-height: 100vh; --plennor-top: 0px; --plennor-bottom: env(safe-area-inset-bottom, 0px); }
+    @supports (height: 100dvh) { :root { --plennor-height: 100dvh; } }
+    html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden; overscroll-behavior:none; background:#080808; }
+    #root, #plennor-modal-viewport { position:fixed; top:var(--plennor-top); left:0; right:0; height:var(--plennor-height); max-height:var(--plennor-height); display:flex; overflow:hidden; box-sizing:border-box; }
+    #root { flex:1; flex-direction:column; }
+    #root > div { flex:1; min-height:0; }
+    #plennor-app-shell { min-height:0; padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0px env(safe-area-inset-left,0px) !important; }
+    :root[data-keyboard="open"] { --plennor-bottom:0px; }
+    #plennor-tab-dock, #plennor-composer-dock { position:fixed !important; left:50% !important; right:auto !important; width:100%; max-width:560px; transform:translateX(-50%); }
+    #plennor-tab-dock { bottom:calc(100dvh - var(--plennor-height) - var(--plennor-top) + 10px) !important; }
+    #plennor-composer-dock { bottom:calc(100dvh - var(--plennor-height) - var(--plennor-top) + 94px) !important; }
+    #plennor-day-scroll > div { padding-bottom:var(--plennor-scroll-clearance,180px) !important; }
+    #plennor-day-scroll { touch-action:pan-y pinch-zoom; overscroll-behavior-x:none; }
+    [data-horizontal-gesture] { -webkit-touch-callout:none; }
+    #plennor-auth-scroll { overscroll-behavior:contain; scrollbar-width:none; }
+    #plennor-auth-scroll::-webkit-scrollbar { display:none; }
+    input, textarea { font-size:16px; caret-color:#f5f5f5; }
+    button, input, textarea, [role="button"] { -webkit-tap-highlight-color:transparent; }
+    :focus-visible { outline:2px solid #d4d4d4; outline-offset:3px; }
+  </style>
+  <script id="plennor-v5-touchcancel-bridge">
+  (() => {
+    window.__PLENNOR_IOS_TEST_BUILD__ = 'v5-runtime-preview';
+    const nativeAdd = EventTarget.prototype.addEventListener;
+    const nativeRemove = EventTarget.prototype.removeEventListener;
+    const state = new WeakMap();
+    const getState = target => {
+      let value = state.get(target);
+      if (!value) { value = { lastTouchEnd: null, wrappers: new WeakMap() }; state.set(target, value); }
+      return value;
+    };
+    EventTarget.prototype.addEventListener = function(type, listener, options) {
+      if (this === window && typeof listener === 'function') {
+        const s = getState(this);
+        if (type === 'touchend') s.lastTouchEnd = listener;
+        if (type === 'touchcancel' && s.lastTouchEnd) {
+          const endListener = s.lastTouchEnd;
+          const wrapped = function(event) {
+            window.__PLENNOR_TOUCHCANCEL_COMMIT_COUNT__ = (window.__PLENNOR_TOUCHCANCEL_COMMIT_COUNT__ || 0) + 1;
+            return endListener.call(this, event);
+          };
+          s.wrappers.set(listener, wrapped);
+          return nativeAdd.call(this, type, wrapped, options);
+        }
+      }
+      return nativeAdd.call(this, type, listener, options);
+    };
+    EventTarget.prototype.removeEventListener = function(type, listener, options) {
+      if (this === window && type === 'touchcancel' && typeof listener === 'function') {
+        const wrapped = state.get(this)?.wrappers?.get(listener);
+        if (wrapped) return nativeRemove.call(this, type, wrapped, options);
+      }
+      return nativeRemove.call(this, type, listener, options);
+    };
+  })();
+  </script>
+</head>
+<body>
+  <noscript style="color:#f5f5f5;padding:24px;display:block">Включите JavaScript, чтобы открыть Plennor.</noscript>
+  <div id="root"></div>
+
+  <script src="https://plennor-euuil4c51-timenti.vercel.app/_expo/static/js/web/index-68f0cade2673b85e722342211d47ae7b.js" defer></script>
+
+  <script id="plennor-ios-viewport-fix">
+  (() => {
+    const doc = document.documentElement;
+    window.__PLENNOR_IOS_VIEWPORT_FIX__ = 'v3-physical-viewport';
+
+    const usesSoftwareKeyboard = element => {
+      if (!element) return false;
+      if (element.isContentEditable === true) return true;
+      const tag = element.tagName;
+      if (tag === 'TEXTAREA') return true;
+      if (tag !== 'INPUT') return false;
+      const type = (element.type || 'text').toLowerCase();
+      return !['button','checkbox','color','file','hidden','image','radio','range','reset','submit'].includes(type);
+    };
+    const standalone = () => window.navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches === true;
+    const layoutHeight = () => Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
+    const visualBottom = () => window.visualViewport ? window.visualViewport.height + window.visualViewport.offsetTop : 0;
+    const resolvedHeight = () => {
+      const layout = layoutHeight();
+      const visual = visualBottom();
+      const screenHeight = Number(window.screen?.height) || 0;
+      if (usesSoftwareKeyboard(document.activeElement)) return Math.max(1, Math.round(visual || layout));
+      const shortfall = screenHeight - Math.max(layout, visual);
+      const physicalViewportIsSafe = standalone() || (shortfall > 20 && shortfall <= 140 && Math.abs(visual - layout) <= 8);
+      return Math.max(1, Math.round(Math.max(layout, visual, physicalViewportIsSafe ? screenHeight : 0)));
+    };
+    const safeBottom = () => {
+      const value = parseFloat(getComputedStyle(doc).getPropertyValue('--plennor-bottom'));
+      return Number.isFinite(value) ? Math.max(0, value) : 0;
+    };
+    let tabNode = null, composerNode = null, dockShift = 0, frame = 0;
+    const visible = node => {
+      if (!node) return false;
+      const box = node.getBoundingClientRect();
+      return box.width > 0 && box.height > 0 && getComputedStyle(node).display !== 'none';
+    };
+    const alignBottomDocks = () => {
+      const root = document.getElementById('root');
+      const tabs = document.getElementById('plennor-tab-dock');
+      const composer = document.getElementById('plennor-composer-dock');
+      if (!root || !tabs) return;
+      if (tabs !== tabNode || composer !== composerNode) { tabNode = tabs; composerNode = composer; dockShift = 0; }
+      const keyboardOpen = usesSoftwareKeyboard(document.activeElement);
+      const targetGap = keyboardOpen ? 10 : Math.max(10, safeBottom());
+      const desiredBottom = root.getBoundingClientRect().bottom - targetGap;
+      const currentBottom = tabs.getBoundingClientRect().bottom;
+      const error = desiredBottom - currentBottom;
+      if (Math.abs(error) > 0.5) dockShift += error;
+      const transform = 'translateX(-50%) translateY(' + dockShift.toFixed(2) + 'px)';
+      tabs.style.setProperty('transform', transform, 'important');
+      if (composer) composer.style.setProperty('transform', transform, 'important');
+      const blocker = visible(composer) ? composer : tabs;
+      const clearance = Math.max(104, Math.ceil(root.getBoundingClientRect().bottom - blocker.getBoundingClientRect().top + 16));
+      doc.style.setProperty('--plennor-scroll-clearance', clearance + 'px');
+    };
+    const sync = () => { frame = 0; doc.style.setProperty('--plennor-height', resolvedHeight() + 'px'); doc.style.setProperty('--plennor-top', '0px'); alignBottomDocks(); };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(sync); };
+    const settle = () => { sync(); schedule(); setTimeout(sync,80); setTimeout(sync,260); setTimeout(sync,520); };
+    window.addEventListener('resize', settle, {passive:true});
+    window.addEventListener('orientationchange', settle, {passive:true});
+    window.addEventListener('pageshow', settle, {passive:true});
+    document.addEventListener('focusin', settle, true);
+    document.addEventListener('focusout', settle, true);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) settle(); }, {passive:true});
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', settle, {passive:true});
+      window.visualViewport.addEventListener('scroll', schedule, {passive:true});
+    }
+    if ('MutationObserver' in window) new MutationObserver(schedule).observe(document.body, {childList:true, subtree:true});
+    settle();
+  })();
+  </script>
+
+  <script id="plennor-auth-storage-migration">
+  (() => { try { const key='plennor.auth.session'; const saved=sessionStorage.getItem(key); if (!localStorage.getItem(key) && saved) localStorage.setItem(key,saved); } catch {} })();
+  </script>
+</body>
+</html>
