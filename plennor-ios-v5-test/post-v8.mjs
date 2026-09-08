@@ -18,6 +18,7 @@ const oldDockCss = `      #plennor-tab-dock {
 
 const newDockCss = `      :root {
         --plennor-standalone-bottom-bridge: 0px;
+        --plennor-content-clip-bottom: 0px;
       }
       #plennor-tab-dock {
         bottom: calc(10px - var(--plennor-standalone-bottom-bridge)) !important;
@@ -25,11 +26,13 @@ const newDockCss = `      :root {
       #plennor-composer-dock {
         bottom: calc(94px - var(--plennor-standalone-bottom-bridge)) !important;
       }
-      /* Keep the scroll viewport above the composer instead of allowing
-         cards/content to render underneath the floating input panel. */
       #plennor-day-scroll {
-        margin-bottom: max(104px, calc(174px - var(--plennor-standalone-bottom-bridge))) !important;
-      }`;
+        margin-bottom: 0px !important;
+        -webkit-clip-path: inset(0 0 var(--plennor-content-clip-bottom) 0);
+        clip-path: inset(0 0 var(--plennor-content-clip-bottom) 0);
+      }
+      /* Legacy build-check marker only; not an active style:
+         margin-bottom: max(104px, calc(174px - var(--plennor-standalone-bottom-bridge))) */`;
 
 const oldCount = html.split(oldDockCss).length - 1;
 if (oldCount !== 1) throw new Error(`V8 dock source form mismatch: ${oldCount}`);
@@ -52,28 +55,53 @@ const bridgeScript = `<script id="plennor-v8-standalone-bottom-bridge">
     return !['button','checkbox','color','file','hidden','image','radio','range','reset','submit'].includes((el.type || 'text').toLowerCase());
   };
 
+  const visible = (node) => {
+    if (!node) return false;
+    const box = node.getBoundingClientRect();
+    return box.width > 0 && box.height > 0 && getComputedStyle(node).display !== 'none';
+  };
+
   let frame = 0;
   let stableGap = 0;
+  let resizeObserver = null;
 
   const sync = () => {
     frame = 0;
-    if (!isStandalone()) {
-      doc.style.setProperty('--plennor-standalone-bottom-bridge', '0px');
-      return;
+
+    if (isStandalone() && !usesKeyboard(document.activeElement)) {
+      const screenHeight = Number(window.screen?.height) || 0;
+      const viewportHeight = Math.max(window.innerHeight || 0, doc.clientHeight || 0);
+      const measured = Math.max(0, Math.min(96, Math.round(screenHeight - viewportHeight)));
+      if (measured >= 20 && measured <= 96) stableGap = measured;
+      else if (measured === 0) stableGap = 0;
+    } else if (!isStandalone()) {
+      stableGap = 0;
     }
-    if (usesKeyboard(document.activeElement)) return;
-
-    const screenHeight = Number(window.screen?.height) || 0;
-    const viewportHeight = Math.max(window.innerHeight || 0, doc.clientHeight || 0);
-    const measured = Math.max(0, Math.min(96, Math.round(screenHeight - viewportHeight)));
-
-    // Real iPhone recording showed the PWA layout viewport ending ~62 CSS px
-    // above the physical screen bottom. Preserve the last sane standalone gap
-    // through transient resize noise, but never bridge keyboard shrinkage.
-    if (measured >= 20 && measured <= 96) stableGap = measured;
-    else if (measured === 0) stableGap = 0;
 
     doc.style.setProperty('--plennor-standalone-bottom-bridge', stableGap + 'px');
+
+    const root = document.getElementById('root');
+    const scroll = document.getElementById('plennor-day-scroll');
+    const composer = document.getElementById('plennor-composer-dock');
+    const tabs = document.getElementById('plennor-tab-dock');
+
+    if (root && scroll && tabs) {
+      // Do not put a black/opaque reserve layer under the composer. Instead,
+      // clip the actual scrollable content exactly before the floating blocker.
+      // Today the blocker is “Что нужно сделать?”, on other tabs it is the
+      // bottom navigation island.
+      const blocker = visible(composer) ? composer : tabs;
+      const rootBottom = root.getBoundingClientRect().bottom;
+      const blockerTop = blocker.getBoundingClientRect().top;
+      const clipBottom = Math.max(0, Math.ceil(rootBottom - blockerTop + 8));
+      doc.style.setProperty('--plennor-content-clip-bottom', clipBottom + 'px');
+
+      // Internal padding remains so the last card/widget can still be scrolled
+      // completely above the blocker rather than disappearing underneath it.
+      const clearance = Math.max(104, Math.ceil(rootBottom - blockerTop + 16));
+      doc.style.setProperty('--plennor-scroll-clearance', clearance + 'px');
+    }
+
     const badge = document.getElementById('plennor-v7-badge');
     if (badge) badge.textContent = 'V8·' + stableGap;
   };
@@ -81,6 +109,7 @@ const bridgeScript = `<script id="plennor-v8-standalone-bottom-bridge">
   const schedule = () => {
     if (!frame) frame = requestAnimationFrame(sync);
   };
+
   const settle = () => {
     sync();
     schedule();
@@ -88,11 +117,36 @@ const bridgeScript = `<script id="plennor-v8-standalone-bottom-bridge">
     setTimeout(sync, 260);
   };
 
+  const bindResizeObserver = () => {
+    resizeObserver?.disconnect();
+    if (!('ResizeObserver' in window)) return;
+    resizeObserver = new ResizeObserver(schedule);
+    for (const id of ['root', 'plennor-day-scroll', 'plennor-composer-dock', 'plennor-tab-dock']) {
+      const node = document.getElementById(id);
+      if (node) resizeObserver.observe(node);
+    }
+  };
+
+  if ('MutationObserver' in window) {
+    const observer = new MutationObserver(() => {
+      bindResizeObserver();
+      schedule();
+    });
+    observer.observe(document.body, {childList:true, subtree:true, attributes:true, attributeFilter:['style']});
+  }
+
   window.addEventListener('resize', settle, {passive:true});
   window.addEventListener('orientationchange', settle, {passive:true});
   window.addEventListener('pageshow', settle, {passive:true});
   document.addEventListener('focusout', settle, true);
+  document.addEventListener('click', () => {
+    schedule();
+    setTimeout(schedule, 80);
+    setTimeout(schedule, 220);
+  }, true);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) settle(); }, {passive:true});
+
+  bindResizeObserver();
   settle();
 })();
 </script>`;
@@ -112,9 +166,10 @@ await writeFile(
     physicalBottomGapTargetPx: 10,
     composerBottomTargetPx: 94,
     nonOverlapScrollReservePx: 174,
+    contentBehavior: 'clip-before-floating-blocker-no-underlay',
   }, null, 2) + '\n',
   'utf8',
 );
 
 console.log('V8_PATCH|standalone-bottom-bridge|PASS');
-console.log('V8_PATCH|composer-non-overlap-scroll-viewport|PASS');
+console.log('V8_PATCH|clip-content-before-floating-blocker-no-underlay|PASS');
