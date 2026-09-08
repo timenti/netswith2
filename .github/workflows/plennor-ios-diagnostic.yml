@@ -1,4 +1,4 @@
-name: Plennor iOS v6 Test
+name: Plennor iOS v7 Test
 
 on:
   push:
@@ -19,35 +19,36 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Build isolated v6 from live Plennor
+      - name: Build isolated v7 from live Plennor
         working-directory: plennor-ios-v5-test
-        run: node build-v6.mjs
+        run: node build-v7.mjs
 
       - name: Verify build before deploy
         working-directory: plennor-ios-v5-test
         shell: bash
         run: |
           test -f dist/index.html
-          test -f dist/V6_BUILD.json
-          grep -q "v6-real-bundle-touchcancel-zero-gap" dist/index.html
-          grep -R -q "touchcancel-commits-horizontal-drag" . || true
-          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('dist/V6_BUILD.json','utf8'));if(j.build!=='v6-real-bundle-touchcancel-zero-gap')process.exit(1);console.log(j)"
+          test -f dist/V7_BUILD.json
+          grep -q "v7-touchmove-commit" dist/index.html
+          grep -q '>V7</div>' dist/index.html
+          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('dist/V7_BUILD.json','utf8'));if(j.build!=='v7-touchmove-commit'||j.commitThresholdPx!==105)process.exit(1);console.log(j)"
 
-      - name: Deploy isolated v6 to Netlify
+      - name: Deploy isolated v7 to Netlify
         working-directory: plennor-ios-v5-test/dist
         run: >-
           npx -y @netlify/mcp@latest
           --site-id 8cc687a9-4608-4905-9ea7-622a1b8174ed
           --proxy-path "https://netlify-mcp.netlify.app/proxy/eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..QZQmifNf6yFwzYZ5.CvskW6lKXa0iSADHQoEyi0Iv7hy4RvIBw0kxxq-s2vQnjle12BQQCIpIgWh646OSRSOBjUStcELjcGqvF4tcy_1SYx9w2tvJfGIaVchu1XURD4t38aaEJI5l6U9-4dJ2uUMQ05Prv12PhbnQqFGYijcBMoYJFee5a7MX9DuM1wPyAj-Bq2D2PPPVLsXXGwvXwyVGZOZ3urIErXMCGBNkNXRwanDavR-6Ky1WDaQBdQ02OIPWLxkr_sUS2laiK7DLV4KcgCVXIWEDvZdTgqjJ0paw-Z_EoQ6AC4TtudzNN597JUPRuqigVBYsNX2EHfhyuzoFthc11V1ydMT7QqhAuSihNI7xE7KKlkW0CvaKkaKOd2Z-8Lx0DChGpkKlcG5nkYgSBnpm.r_-ps2iYUKbhviuIZyesPg"
 
-      - name: Verify deployed v6
+      - name: Verify deployed v7
         shell: bash
         run: |
           for i in {1..12}; do
-            if curl -fsS --max-time 10 https://plennor-ios-v5-test.netlify.app/V6_BUILD.json -o /tmp/v6.json && grep -q 'v6-real-bundle-touchcancel-zero-gap' /tmp/v6.json; then
-              cat /tmp/v6.json
+            if curl -fsS --max-time 10 https://plennor-ios-v5-test.netlify.app/V7_BUILD.json -o /tmp/v7.json && grep -q 'v7-touchmove-commit' /tmp/v7.json; then
+              cat /tmp/v7.json
               curl -fsS --max-time 10 https://plennor-ios-v5-test.netlify.app/ -o /tmp/index.html
-              grep -q 'v6-real-bundle-touchcancel-zero-gap' /tmp/index.html
+              grep -q 'v7-touchmove-commit' /tmp/index.html
+              grep -q '>V7</div>' /tmp/index.html
               echo 'DEPLOY_VERIFY_PASS'
               exit 0
             fi
