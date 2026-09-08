@@ -1,0 +1,12 @@
+name: Plennor v5 Netlify Test
+
+on:
+  push:
+    branches:
+      - plennor-ios-v5-test
+
+jobs:
+  registered:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Temporary Plennor test workflow registration"
