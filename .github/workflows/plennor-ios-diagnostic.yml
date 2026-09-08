@@ -1,0 +1,10 @@
+name: Plennor iOS Diagnostic
+
+on:
+  workflow_dispatch:
+
+jobs:
+  registered:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "registered"
